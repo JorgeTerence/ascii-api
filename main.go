@@ -12,8 +12,7 @@ const (
 )
 
 func main() {
-
-	img, err := openImage("./nois.jpg")
+	img, err := openImage("./selfie-piracicaba.jpg")
 	if err != nil {
 		os.Exit(1)
 	}
@@ -24,31 +23,34 @@ func main() {
 	}
 
 	downscale := make([][]float64, 0)
-	// factor := 2
-	scaleY, scaleX := 3, 2
+	scaleY, scaleX := 6, 4
 
 	bounds := img.Bounds()
 	width, height := bounds.Max.X, bounds.Max.Y
-	// if height%3 == 0 {
-	// 	height++
-	// }
-	// if width%3 == 0 {
-	// 	height--
-	// }
-	if height%2 == 0 {
-		height++
-	}
-	if width%2 == 0 {
-		height--
+
+	if height%scaleY != 0 {
+		height -= height % scaleY
 	}
 
-	// TODO: avoid downscale sample overflowing the matrix
-	// TODO: using a scale factor (x + y) instead of hardcoding values
+	if width%scaleX != 0 {
+		width -= width % scaleX
+	}
+
+	fmt.Printf("Image scale: %d x %d\n", bounds.Max.X, bounds.Max.Y)
+	fmt.Printf("Matrix scale %d x %d\n", width, height)
 
 	for y := 0; y < height; y += scaleY {
 		row := make([]float64, 0)
 		for x := 0; x < width; x += scaleX {
-			row = append(row, (pixels[y][x].luminance()+pixels[y][x+1].luminance()+pixels[y+1][x].luminance()+pixels[y+1][x+1].luminance()+pixels[y+2][x].luminance()+pixels[y+2][x+1].luminance())/ float64(scaleY * scaleX))
+			newLuminance := 0.0
+
+			for sY := y; sY < y+scaleY; sY++ {
+				for sX := x; sX < x+scaleX; sX++ {
+					newLuminance += pixels[sY][sX].luminance()
+				}
+			}
+
+			row = append(row, newLuminance/float64(scaleY*scaleX))
 		}
 		downscale = append(downscale, row)
 	}
@@ -108,7 +110,3 @@ type Pixel struct {
 func (p Pixel) luminance() float64 {
 	return float64(p.R+p.G+p.B) / 765
 }
-
-// func avg(m [][]Pixel, x, y int) Pixel {
-
-// }
