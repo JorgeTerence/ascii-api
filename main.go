@@ -2,111 +2,54 @@ package main
 
 import (
 	"fmt"
-	"image"
-	"image/jpeg"
 	"os"
+	"reader"
 )
 
 const (
-	KERNEL string = " .-+*o9SYM#$"
+	KERNEL string = " .;coPO?S#"
 )
 
-func main() {
-	img, err := openImage("./selfie-piracicaba.jpg")
-	if err != nil {
-		os.Exit(1)
-	}
+// TODO: Download images from URL
+// TODO: Output to file
+// TODO: Add flags for scale and output file
 
-	pixels, err := getPixels(img)
+func main() {
+	luminanceData, w, h, err := reader.ReadFile("./nois.jpg")
 	if err != nil {
+		fmt.Printf("Error reading file: %v\n", err.Error())
 		os.Exit(1)
 	}
 
 	downscale := make([][]float64, 0)
-	scaleY, scaleX := 6, 4
+	scaleY, scaleX := 8, 4
 
-	bounds := img.Bounds()
-	width, height := bounds.Max.X, bounds.Max.Y
+	h -= h % scaleY
+	w -= w % scaleX
 
-	if height%scaleY != 0 {
-		height -= height % scaleY
-	}
-
-	if width%scaleX != 0 {
-		width -= width % scaleX
-	}
-
-	fmt.Printf("Image scale: %d x %d\n", bounds.Max.X, bounds.Max.Y)
-	fmt.Printf("Matrix scale %d x %d\n", width, height)
-
-	for y := 0; y < height; y += scaleY {
+	for y := 0; y < h; y += scaleY {
 		row := make([]float64, 0)
-		for x := 0; x < width; x += scaleX {
-			newLuminance := 0.0
-
-			for sY := y; sY < y+scaleY; sY++ {
-				for sX := x; sX < x+scaleX; sX++ {
-					newLuminance += pixels[sY][sX].luminance()
-				}
-			}
-
-			row = append(row, newLuminance/float64(scaleY*scaleX))
+		for x := 0; x < w; x += scaleX {
+			newLuminance := sample(luminanceData, y, x, scaleY, scaleX)
+			row = append(row, newLuminance)
 		}
 		downscale = append(downscale, row)
 	}
 
 	for _, row := range downscale {
 		for _, p := range row {
-			fmt.Print(string(KERNEL[int(p*10)]))
+			fmt.Print(string(KERNEL[int(p*10-1)]))
 		}
 		fmt.Print("\n")
 	}
 }
 
-func openImage(path string) (image.Image, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-	defer f.Close()
-
-	img, err := jpeg.Decode(f)
-	if err != nil {
-		fmt.Println("Decoding error:", err.Error())
-		return nil, err
-	}
-
-	return img, nil
-}
-
-func getPixels(img image.Image) ([][]Pixel, error) {
-	bounds := img.Bounds()
-	width, height := bounds.Max.X, bounds.Max.Y
-
-	var pixels [][]Pixel
-	for y := 0; y < height; y++ {
-		var row []Pixel
-		for x := 0; x < width; x++ {
-			row = append(row, rgbaToPixel(img.At(x, y).RGBA()))
+func sample(data [][]float64, y, x, h, w int) float64 {
+	var sum float64
+	for _, row := range data[y : y+h] {
+		for _, v := range row[x : x+w] {
+			sum += v
 		}
-		pixels = append(pixels, row)
 	}
-
-	return pixels, nil
-}
-
-func rgbaToPixel(r uint32, g uint32, b uint32, a uint32) Pixel {
-	return Pixel{int(r / 257), int(g / 257), int(b / 257), int(a / 257)}
-}
-
-type Pixel struct {
-	R int
-	G int
-	B int
-	A int
-}
-
-func (p Pixel) luminance() float64 {
-	return float64(p.R+p.G+p.B) / 765
+	return sum / float64(h*w)
 }
