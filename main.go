@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	// "path/filepath"
 	"reader"
 )
 
@@ -15,33 +16,29 @@ const (
 // TODO: Add flags for scale and output file
 
 func main() {
-	luminanceData, w, h, err := reader.ReadFile("./nois.jpg")
+	inputFile := os.Args[1]
+	// filepath.Ext(inputFile)
+	luminanceData, w, h, err := reader.ReadFile(inputFile)
 	if err != nil {
 		fmt.Printf("Error reading file: %v\n", err.Error())
 		os.Exit(1)
 	}
 
-	downscale := make([][]float64, 0)
+	var buffer []byte
 	scaleY, scaleX := 8, 4
 
 	h -= h % scaleY
 	w -= w % scaleX
 
 	for y := 0; y < h; y += scaleY {
-		row := make([]float64, 0)
 		for x := 0; x < w; x += scaleX {
 			newLuminance := sample(luminanceData, y, x, scaleY, scaleX)
-			row = append(row, newLuminance)
+			buffer = append(buffer, KERNEL[int(newLuminance*10-1)])
 		}
-		downscale = append(downscale, row)
+		buffer = append(buffer, '\n')
 	}
 
-	for _, row := range downscale {
-		for _, p := range row {
-			fmt.Print(string(KERNEL[int(p*10-1)]))
-		}
-		fmt.Print("\n")
-	}
+	os.WriteFile("output.txt", buffer, 0644)
 }
 
 func sample(data [][]float64, y, x, h, w int) float64 {
